@@ -6,7 +6,7 @@ set(CMAKE_C_STANDARD 11)
 set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -g -Wall")
 
 # Fichier source principal
-set(SOURCE main_sans_bifurcation.c)
+set(SOURCE main_avec_bifurcation.c)
 
 # Bibliothèque externe (chemin de la bibliothèque)
 link_directories(${CMAKE_SOURCE_DIR}) # Recherche dans le répertoire courant
