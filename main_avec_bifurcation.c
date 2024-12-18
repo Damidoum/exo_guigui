@@ -24,25 +24,6 @@ void avancer(Position *position, Direction direction)
     }
 }
 
-Direction determiner_prochaine_direction(Position *position, Direction direction)
-{
-    Direction priorites[4][3] = {
-        {EST, NORD, OUEST},  // si la direction est nord
-        {OUEST, SUD, EST},   // si la direction est sud
-        {SUD, EST, NORD},    // ... est
-        {NORD, OUEST, SUD}}; // ... ouest
-
-    for (int i = 0; i < 3; i++)
-    {
-        if (est_voie_libre(position, priorites[direction][i]))
-        {
-            return priorites[direction][i];
-        }
-    }
-
-    return direction;
-}
-
 Direction direction_opposee(Direction direction)
 {
     if (direction == NORD)
@@ -68,66 +49,73 @@ Direction direction_opposee(Direction direction)
     }
 }
 
-Noeud_Liste *lister_direction_possibles(Position position, Direction direction)
+Pile_Directions lister_directions_possibles(Position *position, Direction direction)
 {
-    Noeud_Liste *liste = NULL;
-    Direction direction_op = direction_opposee(direction);
+    Pile_Directions directions_possibles;
+    initialiserPileDirections(&directions_possibles);
     for (int i = 0; i < 4; i++)
     {
-        if (est_voie_libre(&position, i) && i != direction_op)
+        if (est_voie_libre(position, i) && i != direction_opposee(direction))
         {
-            liste = ajouterDirection(liste, i);
+            empilerDirection(&directions_possibles, i);
         }
     }
-    return liste;
-}
-void explorer(Position *position,
-              Noeud_Liste *directions_possibles,
-              Pile *directions_suivies,
-              Pile *listes_restantes)
-{
-    direction_a_explorer = extraireDirection(directions_possibles, &direction);
+    return directions_possibles;
 }
 
-Direction direction_opposee(Direction direction)
+Pile_Directions explorer(Position *position, Pile_Directions *directions_a_explorer, Pile_Directions *chemin, Pile_PilesDirections *chemins_a_voir)
 {
-    if (direction == NORD)
+    Direction direction_a_explorer = depilerDirection(directions_a_explorer);
+    empilerDirection(chemin, direction_a_explorer);
+
+    // On empile une copie indépendante des directions restantes
+    Pile_Directions *copie_directions = copierPileDirections(directions_a_explorer);
+    if (copie_directions != NULL)
     {
-        return SUD;
+        empilerPileDirections(chemins_a_voir, copie_directions);
     }
-    else if (direction == SUD)
-    {
-        return NORD;
-    }
-    else if (direction == EST)
-    {
-        return OUEST;
-    }
-    else if (direction == OUEST)
-    {
-        return EST;
-    }
+
+    afficher_avancer_labyrinthe(position, direction_a_explorer);
+    avancer(position, direction_a_explorer);
+    return lister_directions_possibles(position, direction_a_explorer);
 }
 
-void update_solution(Tableau *solution, Direction nouvelle_direction)
+Pile_Directions revenir(Position *position, Pile_Directions *directions_a_explorer, Pile_Directions *chemin, Pile_PilesDirections *chemins_a_voir)
 {
-    if (solution->longueur_solution == 0)
+    Direction derniere_direction = depilerDirection(chemin);
+    afficher_avancer_labyrinthe(position, direction_opposee(derniere_direction));
+    avancer(position, direction_opposee(derniere_direction));
+
+    // On récupère la prochaine pile de directions à explorer
+    Pile_Directions *nouvelles_directions = depilerPileDirections(chemins_a_voir);
+    return *nouvelles_directions;
+}
+
+Pile_Directions resoudre_labyrinthe_avec_bifurcation(Position position, Position arrivee, Direction direction)
+{
+    Pile_Directions chemin;
+    initialiserPileDirections(&chemin);
+    Pile_PilesDirections chemins_a_voir;
+    initialiserPilePilesDirections(&chemins_a_voir);
+    Pile_Directions directions_a_explorer = lister_directions_possibles(&position, direction);
+    while (position.x != arrivee.x || position.y != arrivee.y)
     {
-        solution->direction = (Direction *)malloc(sizeof(Direction));
-        solution->longueur_solution++;
-        solution->direction[0] = nouvelle_direction;
+        if (!estVidePileDirections(&directions_a_explorer))
+        {
+            directions_a_explorer = explorer(&position, &directions_a_explorer, &chemin, &chemins_a_voir);
+        }
+        else
+        {
+            directions_a_explorer = revenir(&position, &directions_a_explorer, &chemin, &chemins_a_voir);
+        }
     }
-    else
-    {
-        solution->direction = (Direction *)realloc(solution->direction, (solution->longueur_solution + 1) * sizeof(Direction));
-        solution->direction[solution->longueur_solution] = nouvelle_direction;
-        solution->longueur_solution++;
-    }
+    return chemin;
 }
 
 int main(int argc, char *argv[])
 {
-    // Position position, arrivee;
-    // Direction direction = initialiser_labyrinthe(SANS_BIFURCATION, &position, &arrivee, 1);
+    Position position, arrivee;
+    Direction direction = initialiser_labyrinthe(SANS_BOUCLE, &position, &arrivee, 1);
+    Pile_Directions chemin = resoudre_labyrinthe_avec_bifurcation(position, arrivee, direction);
     return 0;
 }
